@@ -1,0 +1,33 @@
+<!-- templates/index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Ampere Values</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        function fetchAmpere() {
+            $.ajax({
+                url: "/data",
+                type: "GET",
+                success: function(data) {
+                    $("#ampere-value").text(data.ampere);
+                    $("#timestamp").text(data.date);
+                }
+            });
+        }
+
+        $(document).ready(function() {
+            fetchAmpere(); // Initial fetch
+            setInterval(fetchAmpere, 1000); // Fetch every second
+        });
+    </script>
+</head>
+<body>
+    <h1>Real-Time Ampere Values</h1>
+    <p>Ampere: <span id="ampere-value">Loading...</span></p>
+    <p>Timestamp: <span id="timestamp">Loading...</span></p>
+</body>
+</html>
