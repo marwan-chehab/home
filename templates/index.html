@@ -3,6 +3,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <style>
+    table {
+        width: 50%;
+	border-collapse: collapse;
+	margin: 25px 0;
+	font-size: 18px;
+	text-align: left;
+    }
+    th, td {
+	padding: 12px 15px;
+	border: 1px solid #ddd;
+    }
+    th {
+	background-color: #f2f2f2;
+    }
+    </style>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-Time Ampere Values</title>
@@ -14,6 +30,8 @@
                 type: "GET",
                 success: function(data) {
                     $("#ampere-value").text(data.ampere);
+                    $("#heater-status").text(data.heater);
+                    $("#warehouse-status").text(data.warehouse);
                     $("#timestamp").text(data.date);
                 }
             });
@@ -27,7 +45,28 @@
 </head>
 <body>
     <h1>Real-Time Ampere Values</h1>
-    <p>Ampere: <span id="ampere-value">Loading...</span></p>
-    <p>Timestamp: <span id="timestamp">Loading...</span></p>
+
+    <table>
+	    <tr>
+		    <th>Parameter</th>
+		    <th>Value</th>
+	    </tr>
+	    <tr>
+		    <td>Ampere</td>
+		    <td><span id="ampere-value">Loading...</span></td>
+	    </tr>
+	    <tr>
+		    <td>Heater</td>
+		    <td><span id="heater-status">Loading...</span></td>
+	    </tr>
+	    <tr>
+		    <td>Warehouse</td>
+		    <td><span id="warehouse-status">Loading...</span></td>
+	    </tr>
+	    <tr>
+		    <td>Timestamp</td>
+		    <td><span id="timestamp">Loading...</span></td>
+	    </tr>
+    </table>
 </body>
 </html>

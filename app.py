@@ -35,11 +35,11 @@ def data():
         if connection:
             try:
                 cursor = connection.cursor(dictionary=True)
-                cursor.execute("SELECT * FROM ampere ORDER BY date DESC LIMIT 1")
+                cursor.execute("SELECT * FROM ampere ORDER BY amp_id DESC LIMIT 1")
                 result = cursor.fetchone()
                 connection.close()
                 if result:
-                    print(f"Current ampere reading: {result['ampere']} at {result['date']}")
+                    print(f"Current ampere reading: {result['ampere']}, heater: {result['heater']}, warehouse: {result['warehouse']} at {result['date']}")
                 else:
                     print("No data found")
                 return jsonify(result)
