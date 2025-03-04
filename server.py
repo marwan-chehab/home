@@ -1,5 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 import mysql.connector
+from mysql.connector import Error  # Import Error properly
 
 app = Flask(__name__)
 
@@ -13,7 +14,7 @@ def create_connection():
             database="home"
         )
         return connection
-    except mysql.connector.Error as e:
+    except Error as e:
         print(f"Error connecting to database: {e}")
         return None
 
@@ -28,7 +29,7 @@ def get_latest_status():
             cursor.close()
             connection.close()
             return result[0] if result else "off"  # Default to "off" if no data
-        except mysql.connector.Error as e:
+        except Error as e:
             print(f"Error fetching status: {e}")
     return "off"  # Return default value if error occurs
 
@@ -54,7 +55,7 @@ def submit_status():
         cursor.close()
         connection.close()
         return redirect(url_for('update_status'))  # Redirect to update page
-    except mysql.connector.Error as e:
+    except Error as e:
         print(f"Error while executing query: {e}")
         return f"Error executing query: {str(e)}", 500
     except Exception as e:
@@ -78,6 +79,10 @@ def burner():
             connection.close()
 
             if result:
+                # Ensure datetime fields are converted to strings
+                if "stamp" in result and isinstance(result["stamp"], datetime):
+                    result["stamp"] = result["stamp"].strftime("%Y-%m-%d %H:%M:%S")
+                
                 print(f"onoff: {result['onoff']}")  # Debugging
                 print("Returning result to browser:", result)
                 return jsonify(result)  # Make sure result is JSON serializable
