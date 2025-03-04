@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Update Burner Status</title>
     <style>
+        table {
+            width: 50%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 10px;
+            text-align: center;
+        }
         .status-indicator {
             display: inline-block;
             width: 15px;
@@ -18,23 +28,30 @@
 </head>
 <body>
     <h2>Set Burner Status</h2>
-    
-    <!-- Status Indicator -->
-    <p>
-        Current Status: 
-        <strong>{{ current_status }}</strong>
-        <span class="status-indicator {% if current_status == 'on' %}green{% else %}red{% endif %}"></span>
-    </p>
 
-    <!-- Form to Toggle Status -->
-    <form action="/submit_status" method="POST">
-        <label for="onoff">Choose Status:</label>
-        <select name="onoff" id="onoff">
-            <option value="on" {% if current_status == 'off' %}selected{% endif %}>On</option>
-            <option value="off" {% if current_status == 'on' %}selected{% endif %}>Off</option>
-        </select>
-        <button type="submit">Update</button>
-    </form>
+    <table>
+        <tr>
+            <th>Item</th>
+            <th>Status</th>
+            <th>Update</th>
+        </tr>
+        <tr>
+            <td>Burner</td>
+            <td>
+                <strong>{{ current_status }}</strong>
+                <span class="status-indicator {% if current_status == 'on' %}green{% else %}red{% endif %}"></span>
+            </td>
+            <td>
+                <form action="/submit_status" method="POST">
+                    <select name="onoff" id="onoff">
+                        <option value="on" {% if current_status == 'off' %}selected{% endif %}>On</option>
+                        <option value="off" {% if current_status == 'on' %}selected{% endif %}>Off</option>
+                    </select>
+                    <button type="submit">Update</button>
+                </form>
+            </td>
+        </tr>
+    </table>
 
     <br>
     <a href="/">Go Home</a>
