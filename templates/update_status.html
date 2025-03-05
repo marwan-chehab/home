@@ -79,28 +79,41 @@
                 });
 
                 if (response.ok) {
-                    // Immediately update the UI without waiting for the next fetch
-                    const row = document.getElementById(`device-${deviceType}`);
+                    // Trigger immediate status refresh
+                    await fetchDeviceStatus();
+                }
+            } catch (error) {
+                console.error("Error updating status:", error);
+            }
+        }
+
+        async function fetchDeviceStatus() {
+            try {
+                const response = await fetch('/update_status');
+                const devices = await response.json();
+                
+                devices.forEach(device => {
+                    const row = document.getElementById(`device-${device.device_type}`);
                     if (row) {
                         const statusElement = row.querySelector(".device-status");
                         const indicatorElement = row.querySelector(".status-indicator");
                         const timestampElement = row.querySelector(".device-timestamp");
+                        const selectElement = row.querySelector("select[name='onoff']");
 
-                        if (statusElement) statusElement.textContent = newStatus;
+                        if (statusElement) statusElement.textContent = device.status;
                         if (indicatorElement) {
-                            indicatorElement.className = `status-indicator ${newStatus === 'on' ? 'green' : 'red'}`;
+                            indicatorElement.className = `status-indicator ${device.status === 'on' ? 'green' : 'red'}`;
                         }
                         if (timestampElement) {
-                            timestampElement.textContent = new Date().toLocaleString();
+                            timestampElement.textContent = device.latest_stamp || "N/A";
                         }
-                        
-                        // Update the select dropdown to match the new status
-                        const selectElement = row.querySelector("select[name='onoff']");
-                        if (selectElement) selectElement.value = newStatus;
+                        if (selectElement) {
+                            selectElement.value = device.status;
+                        }
                     }
-                }
+                });
             } catch (error) {
-                console.error("Error updating status:", error);
+                console.error("Error updating device table:", error);
             }
         }
 
@@ -117,53 +130,8 @@
             }
         });
 
-        // Existing fetch and interval code remains the same
-        async function fetchDeviceStatus() {
-            try {
-                const response = await fetch('/update_status');
-                const devices = await response.json();
-                const tableBody = document.querySelector("#deviceTable tbody");
-
-                devices.forEach(device => {
-                    let row = document.getElementById(`device-${device.device_type}`);
-
-                    if (!row) {
-                        // If row does not exist, create it
-                        row = document.createElement("tr");
-                        row.id = `device-${device.device_type}`;
-                        row.innerHTML = `
-                            <td>${device.device_type.charAt(0).toUpperCase() + device.device_type.slice(1)}</td>
-                            <td>
-                                <strong class="device-status">${device.status}</strong>
-                                <span class="status-indicator ${device.status === 'on' ? 'green' : 'red'}"></span>
-                            </td>
-                            <td class="device-timestamp">${device.latest_stamp || "N/A"}</td>
-                            <td>
-                                <form class="update-form" data-device="${device.device_type}">
-                                    <select name="onoff">
-                                        <option value="on" ${device.status === 'off' ? 'selected' : ''}>On</option>
-                                        <option value="off" ${device.status === 'on' ? 'selected' : ''}>Off</option>
-                                    </select>
-                                    <button type="submit">Update</button>
-                                </form>
-                            </td>
-                        `;
-                        tableBody.appendChild(row);
-                    } else {
-                        // Update existing row
-                        row.querySelector(".device-status").textContent = device.status;
-                        row.querySelector(".status-indicator").className = "status-indicator " + (device.status === "on" ? "green" : "red");
-                        row.querySelector(".device-timestamp").textContent = device.latest_stamp || "N/A";
-                        row.querySelector("select[name='onoff']").value = device.status;
-                    }
-                });
-
-            } catch (error) {
-                console.error("Error updating device table:", error);
-            }
-        }
-
-        setInterval(fetchDeviceStatus, 5000); // Auto-refresh every 5 seconds
+        // Periodic refresh
+        setInterval(fetchDeviceStatus, 5000);
     </script>
 </body>
 </html>
