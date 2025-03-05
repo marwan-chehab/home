@@ -61,7 +61,7 @@
     <a href="/">Go Home</a>
 
     <script>
-        async function updateDeviceTable() {
+        async function fetchDeviceStatus() {
             try {
                 const response = await fetch('/update_status');
                 const devices = await response.json();
@@ -70,6 +70,7 @@
                     let row = document.getElementById(`device-${device.device_type}`);
 
                     if (!row) {
+                        // If row does not exist, create it
                         row = document.createElement("tr");
                         row.id = `device-${device.device_type}`;
                         row.innerHTML = `
@@ -91,46 +92,44 @@
                         `;
                         document.getElementById("deviceTable").appendChild(row);
                     } else {
+                        // Update existing row
                         row.querySelector(".device-status").textContent = device.status;
                         row.querySelector(".status-indicator").className = "status-indicator " + (device.status === "on" ? "green" : "red");
                         row.querySelector(".device-timestamp").textContent = device.latest_stamp || "N/A";
                         row.querySelector("select[name='onoff']").value = device.status;
                     }
                 });
-
-                attachFormListeners(); // Fix: Ensures forms work after every update
             } catch (error) {
                 console.error("Error updating device table:", error);
             }
         }
 
-        function attachFormListeners() {
-            document.querySelectorAll(".update-form").forEach(form => {
-                form.addEventListener("submit", async function (event) {
-                    event.preventDefault();
+        // Attach event listener using event delegation (ensures it works dynamically)
+        document.addEventListener("submit", async function(event) {
+            if (event.target.classList.contains("update-form")) {
+                event.preventDefault();
 
-                    const deviceType = this.dataset.device;
-                    const newStatus = this.querySelector("select[name='onoff']").value;
+                const form = event.target;
+                const deviceType = form.dataset.device;
+                const newStatus = form.querySelector("select[name='onoff']").value;
 
-                    try {
-                        const response = await fetch("/submit_status", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                            body: new URLSearchParams({ device_type: deviceType, onoff: newStatus })
-                        });
+                try {
+                    const response = await fetch("/submit_status", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                        body: new URLSearchParams({ device_type: deviceType, onoff: newStatus })
+                    });
 
-                        if (response.ok) {
-                            updateDeviceTable(); // Fix: Refreshes table instantly after submission
-                        }
-                    } catch (error) {
-                        console.error("Error updating status:", error);
+                    if (response.ok) {
+                        fetchDeviceStatus(); // Refresh table immediately after update
                     }
-                });
-            });
-        }
+                } catch (error) {
+                    console.error("Error updating status:", error);
+                }
+            }
+        });
 
-        setInterval(updateDeviceTable, 5000); // Auto-refresh every 5 seconds
-        attachFormListeners(); // Ensure forms work at page load
+        setInterval(fetchDeviceStatus, 5000); // Auto-refresh every 5 seconds
     </script>
 
 </body>
