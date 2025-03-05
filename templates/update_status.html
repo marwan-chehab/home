@@ -43,7 +43,7 @@
                 <strong>{{ device.status }}</strong>
                 <span class="status-indicator {% if device.status == 'on' %}green{% else %}red{% endif %}"></span>
             </td>
-            <td>{{ device.latest_stamp }}</td>
+            <td>{{ device.latest_stamp if device.latest_stamp else "N/A" }}</td> <!-- Fix applied here -->
             <td>
                 <form action="/submit_status" method="POST">
                     <input type="hidden" name="device_type" value="{{ device.device_type }}">
