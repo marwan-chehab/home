@@ -69,29 +69,7 @@
                 devices.forEach(device => {
                     let row = document.getElementById(`device-${device.device_type}`);
 
-                    if (!row) {
-                        // If row does not exist, create it
-                        row = document.createElement("tr");
-                        row.id = `device-${device.device_type}`;
-                        row.innerHTML = `
-                            <td>${device.device_type.charAt(0).toUpperCase() + device.device_type.slice(1)}</td>
-                            <td>
-                                <strong class="device-status">${device.status}</strong>
-                                <span class="status-indicator ${device.status === 'on' ? 'green' : 'red'}"></span>
-                            </td>
-                            <td class="device-timestamp">${device.latest_stamp || "N/A"}</td>
-                            <td>
-                                <form class="update-form" data-device="${device.device_type}">
-                                    <select name="onoff">
-                                        <option value="on" ${device.status === 'off' ? 'selected' : ''}>On</option>
-                                        <option value="off" ${device.status === 'on' ? 'selected' : ''}>Off</option>
-                                    </select>
-                                    <button type="submit">Update</button>
-                                </form>
-                            </td>
-                        `;
-                        document.getElementById("deviceTable").appendChild(row);
-                    } else {
+                    if (row) {
                         // Update existing row
                         row.querySelector(".device-status").textContent = device.status;
                         row.querySelector(".status-indicator").className = "status-indicator " + (device.status === "on" ? "green" : "red");
@@ -104,32 +82,34 @@
             }
         }
 
-        // Attach event listener using event delegation (ensures it works dynamically)
-        document.addEventListener("submit", async function(event) {
-            if (event.target.classList.contains("update-form")) {
-                event.preventDefault();
+        document.addEventListener("DOMContentLoaded", () => {
+            // Attach event listener to all update forms
+            document.querySelectorAll(".update-form").forEach(form => {
+                form.addEventListener("submit", async function (event) {
+                    event.preventDefault();
 
-                const form = event.target;
-                const deviceType = form.dataset.device;
-                const newStatus = form.querySelector("select[name='onoff']").value;
+                    const deviceType = this.dataset.device;
+                    const newStatus = this.querySelector("select[name='onoff']").value;
 
-                try {
-                    const response = await fetch("/submit_status", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                        body: new URLSearchParams({ device_type: deviceType, onoff: newStatus })
-                    });
+                    try {
+                        const response = await fetch("/submit_status", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                            body: new URLSearchParams({ device_type: deviceType, onoff: newStatus })
+                        });
 
-                    if (response.ok) {
-                        fetchDeviceStatus(); // Refresh table immediately after update
+                        if (response.ok) {
+                            fetchDeviceStatus(); // Refresh table immediately after update
+                        }
+                    } catch (error) {
+                        console.error("Error updating status:", error);
                     }
-                } catch (error) {
-                    console.error("Error updating status:", error);
-                }
-            }
+                });
+            });
+
+            setInterval(fetchDeviceStatus, 5000); // Auto-refresh every 5 seconds
         });
 
-        setInterval(fetchDeviceStatus, 5000); // Auto-refresh every 5 seconds
     </script>
 
 </body>
