@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Update Burner Status</title>
+    <title>Update Device Status</title>
     <style>
         table {
-            width: 50%;
+            width: 60%;
             border-collapse: collapse;
             margin-top: 20px;
         }
@@ -27,30 +27,35 @@
     </style>
 </head>
 <body>
-    <h2>Set Burner Status</h2>
+    <h2>Device Control</h2>
 
     <table>
         <tr>
-            <th>Item</th>
+            <th>Device</th>
             <th>Status</th>
+            <th>Last Updated</th>
             <th>Update</th>
         </tr>
+        {% for device in devices %}
         <tr>
-            <td>Burner</td>
+            <td>{{ device.device_type.capitalize() }}</td>
             <td>
-                <strong>{{ current_status }}</strong>
-                <span class="status-indicator {% if current_status == 'on' %}green{% else %}red{% endif %}"></span>
+                <strong>{{ device.status }}</strong>
+                <span class="status-indicator {% if device.status == 'on' %}green{% else %}red{% endif %}"></span>
             </td>
+            <td>{{ device.latest_stamp }}</td>
             <td>
                 <form action="/submit_status" method="POST">
-                    <select name="onoff" id="onoff">
-                        <option value="on" {% if current_status == 'off' %}selected{% endif %}>On</option>
-                        <option value="off" {% if current_status == 'on' %}selected{% endif %}>Off</option>
+                    <input type="hidden" name="device_type" value="{{ device.device_type }}">
+                    <select name="onoff">
+                        <option value="on" {% if device.status == 'off' %}selected{% endif %}>On</option>
+                        <option value="off" {% if device.status == 'on' %}selected{% endif %}>Off</option>
                     </select>
                     <button type="submit">Update</button>
                 </form>
             </td>
         </tr>
+        {% endfor %}
     </table>
 
     <br>
