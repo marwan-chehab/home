@@ -65,93 +65,36 @@
     <a href="/">Go Home</a>
 
     <script>
-        async function updateDeviceStatus(deviceType, newStatus) {
-            try {
-                const response = await fetch("/submit_status", {
-                    method: "POST",
-                    headers: { 
-                        "Content-Type": "application/x-www-form-urlencoded" 
-                    },
-                    body: new URLSearchParams({ 
-                        device_type: deviceType, 
-                        onoff: newStatus 
-                    })
-                });
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.update-form').forEach(form => {
+                form.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+                    
+                    const deviceType = form.dataset.device;
+                    const newStatus = form.querySelector('select[name="onoff"]').value;
+                    
+                    try {
+                        const response = await fetch('/submit_status', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                            },
+                            body: new URLSearchParams({
+                                device_type: deviceType,
+                                onoff: newStatus
+                            })
+                        });
 
-                const data = await response.json();
-                
-                if (data.status === "success") {
-                    // Immediately update the UI
-                    const row = document.getElementById(`device-${deviceType}`);
-                    if (row) {
-                        const statusElement = row.querySelector(".device-status");
-                        const indicatorElement = row.querySelector(".status-indicator");
-                        const timestampElement = row.querySelector(".device-timestamp");
-                        const selectElement = row.querySelector("select[name='onoff']");
-
-                        if (statusElement) statusElement.textContent = newStatus;
-                        if (indicatorElement) {
-                            indicatorElement.className = `status-indicator ${newStatus === 'on' ? 'green' : 'red'}`;
+                        // Immediately refresh the entire page to see updates
+                        if (response.ok) {
+                            location.reload();
                         }
-                        if (timestampElement) {
-                            timestampElement.textContent = new Date().toLocaleString();
-                        }
-                        if (selectElement) {
-                            selectElement.value = newStatus;
-                        }
+                    } catch (error) {
+                        console.error('Error:', error);
                     }
-                }
-            } catch (error) {
-                console.error("Error updating status:", error);
-            }
-        }
-
-        // Event listener setup
-        document.addEventListener("submit", async function(event) {
-            if (event.target.classList.contains("update-form")) {
-                event.preventDefault();
-
-                const form = event.target;
-                const deviceType = form.dataset.device;
-                const newStatus = form.querySelector("select[name='onoff']").value;
-
-                await updateDeviceStatus(deviceType, newStatus);
-            }
+                });
+            });
         });
-
-        // Periodic refresh to catch any changes from other clients
-        async function fetchDeviceStatus() {
-            try {
-                const response = await fetch('/update_status');
-                const devices = await response.json();
-                
-                devices.forEach(device => {
-                    const row = document.getElementById(`device-${device.device_type}`);
-                    if (row) {
-                        const statusElement = row.querySelector(".device-status");
-                        const indicatorElement = row.querySelector(".status-indicator");
-                        const timestampElement = row.querySelector(".device-timestamp");
-                        const selectElement = row.querySelector("select[name='onoff']");
-
-                        if (statusElement) statusElement.textContent = device.status;
-                        if (indicatorElement) {
-                            indicatorElement.className = `status-indicator ${device.status === 'on' ? 'green' : 'red'}`;
-                        }
-                        if (timestampElement) {
-                            timestampElement.textContent = device.latest_stamp || "N/A";
-                        }
-                        if (selectElement) {
-                            selectElement.value = device.status;
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error("Error updating device table:", error);
-            }
-        }
-
-        // Periodic refresh
-        setInterval(fetchDeviceStatus, 5000);
     </script>
 </body>
 </html>
