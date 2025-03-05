@@ -1,0 +1,64 @@
+#include <Wire.h>
+#include <ArduinoJson.h>
+
+#define SLAVE_ADDR 8  // I2C address of the Arduino Nano
+String receivedData = "";  // Global variable to store received data
+bool newDataAvailable = false;  // Flag to indicate new data received
+
+// Function to handle incoming data
+void receiveEvent(int bytes) {
+    receivedData = "";  // Clear previous data
+    while (Wire.available()) {
+        char c = Wire.read();
+        receivedData += c;
+    }
+    newDataAvailable = true;  // Set flag when new data arrives
+}
+
+const int burnerPin = 2;
+
+void setup() {
+    Serial.begin(4800);
+    Wire.begin(SLAVE_ADDR); // Initialize I2C as a slave
+    Wire.onReceive(receiveEvent); // Register receive event
+
+    pinMode(burnerPin, OUTPUT);
+}
+
+void loop() {
+    if (newDataAvailable) {  // Check if new data is received
+        Serial.println("Received from ESP32: " + receivedData);
+
+        // Parse JSON
+        JsonDocument doc;
+        DeserializationError error = deserializeJson(doc, receivedData);
+
+        if (!error) {
+            const char* statusValue = doc["status"];
+            Serial.print("Extracted Status: ");
+            Serial.println(statusValue);
+            if (strcmp(statusValue, "on") == 0) {
+              setOutputs(HIGH);
+              Serial.println("HIFHA");
+            }else {
+              setOutputs(LOW);
+            }
+
+        } else {
+            Serial.println("JSON Parsing Failed!");
+        }
+
+        newDataAvailable = false;  // Reset flag
+    }
+    
+    delay(500);
+}
+
+void setOutputs(bool burner) {
+  static bool lastBurner = LOW;
+
+  if (burner != lastBurner) {
+    digitalWrite(burnerPin, burner);
+    lastBurner = burner;
+  }
+}
