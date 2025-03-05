@@ -65,6 +65,59 @@
     <a href="/">Go Home</a>
 
     <script>
+        async function updateDeviceStatus(deviceType, newStatus) {
+            try {
+                const response = await fetch("/submit_status", {
+                    method: "POST",
+                    headers: { 
+                        "Content-Type": "application/x-www-form-urlencoded" 
+                    },
+                    body: new URLSearchParams({ 
+                        device_type: deviceType, 
+                        onoff: newStatus 
+                    })
+                });
+
+                if (response.ok) {
+                    // Immediately update the UI without waiting for the next fetch
+                    const row = document.getElementById(`device-${deviceType}`);
+                    if (row) {
+                        const statusElement = row.querySelector(".device-status");
+                        const indicatorElement = row.querySelector(".status-indicator");
+                        const timestampElement = row.querySelector(".device-timestamp");
+
+                        if (statusElement) statusElement.textContent = newStatus;
+                        if (indicatorElement) {
+                            indicatorElement.className = `status-indicator ${newStatus === 'on' ? 'green' : 'red'}`;
+                        }
+                        if (timestampElement) {
+                            timestampElement.textContent = new Date().toLocaleString();
+                        }
+                        
+                        // Update the select dropdown to match the new status
+                        const selectElement = row.querySelector("select[name='onoff']");
+                        if (selectElement) selectElement.value = newStatus;
+                    }
+                }
+            } catch (error) {
+                console.error("Error updating status:", error);
+            }
+        }
+
+        // Event listener setup
+        document.addEventListener("submit", async function(event) {
+            if (event.target.classList.contains("update-form")) {
+                event.preventDefault();
+
+                const form = event.target;
+                const deviceType = form.dataset.device;
+                const newStatus = form.querySelector("select[name='onoff']").value;
+
+                await updateDeviceStatus(deviceType, newStatus);
+            }
+        });
+
+        // Existing fetch and interval code remains the same
         async function fetchDeviceStatus() {
             try {
                 const response = await fetch('/update_status');
@@ -110,33 +163,7 @@
             }
         }
 
-        // Attach event listener using event delegation
-        document.addEventListener("submit", async function(event) {
-            if (event.target.classList.contains("update-form")) {
-                event.preventDefault();
-
-                const form = event.target;
-                const deviceType = form.dataset.device;
-                const newStatus = form.querySelector("select[name='onoff']").value;
-
-                try {
-                    const response = await fetch("/submit_status", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                        body: new URLSearchParams({ device_type: deviceType, onoff: newStatus })
-                    });
-
-                    if (response.ok) {
-                        fetchDeviceStatus(); // Refresh table immediately after update
-                    }
-                } catch (error) {
-                    console.error("Error updating status:", error);
-                }
-            }
-        });
-
         setInterval(fetchDeviceStatus, 5000); // Auto-refresh every 5 seconds
     </script>
-
 </body>
 </html>
