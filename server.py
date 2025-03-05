@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 import mysql.connector
 from mysql.connector import Error  # Import Error properly
-from datetime import datetime  # ✅ Import datetime
+from datetime import datetime  #  Import datetime
 
 app = Flask(__name__)
 
