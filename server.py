@@ -19,17 +19,20 @@ def create_connection():
         print(f"Error connecting to database: {e}")
         return None
 
-# Get the latest status of all devices
 def get_latest_status():
     connection = create_connection()
     if connection:
         try:
             cursor = connection.cursor(dictionary=True)
             query = """
-                SELECT device_type, status, MAX(stamp) as latest_stamp
-                FROM device_control 
-                GROUP BY device_type 
-                ORDER BY device_type
+                SELECT dc.device_type, dc.status, dc.stamp
+                FROM device_control dc
+                WHERE dc.stamp = (
+                    SELECT MAX(stamp)
+                    FROM device_control
+                    WHERE device_type = dc.device_type
+                )
+                ORDER BY dc.device_type;
             """
             cursor.execute(query)
             devices = cursor.fetchall()
