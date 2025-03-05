@@ -61,17 +61,15 @@
     <a href="/">Go Home</a>
 
     <script>
-        // Function to fetch and update table data dynamically
         async function updateDeviceTable() {
             try {
-                const response = await fetch('/update_status'); // Fetch latest data
-                const devices = await response.json(); // Parse JSON
+                const response = await fetch('/update_status');
+                const devices = await response.json();
 
                 devices.forEach(device => {
                     let row = document.getElementById(`device-${device.device_type}`);
 
                     if (!row) {
-                        // If row does not exist, create a new row
                         row = document.createElement("tr");
                         row.id = `device-${device.device_type}`;
                         row.innerHTML = `
@@ -93,7 +91,6 @@
                         `;
                         document.getElementById("deviceTable").appendChild(row);
                     } else {
-                        // Update existing row
                         row.querySelector(".device-status").textContent = device.status;
                         row.querySelector(".status-indicator").className = "status-indicator " + (device.status === "on" ? "green" : "red");
                         row.querySelector(".device-timestamp").textContent = device.latest_stamp || "N/A";
@@ -101,7 +98,7 @@
                     }
                 });
 
-                attachFormListeners(); // Reattach event listeners after updating the table
+                attachFormListeners(); // Fix: Ensures forms work after every update
             } catch (error) {
                 console.error("Error updating device table:", error);
             }
@@ -109,8 +106,8 @@
 
         function attachFormListeners() {
             document.querySelectorAll(".update-form").forEach(form => {
-                form.onsubmit = async function (event) {
-                    event.preventDefault(); // Prevent page reload
+                form.addEventListener("submit", async function (event) {
+                    event.preventDefault();
 
                     const deviceType = this.dataset.device;
                     const newStatus = this.querySelector("select[name='onoff']").value;
@@ -123,18 +120,17 @@
                         });
 
                         if (response.ok) {
-                            updateDeviceTable(); // Refresh table after update
+                            updateDeviceTable(); // Fix: Refreshes table instantly after submission
                         }
                     } catch (error) {
                         console.error("Error updating status:", error);
                     }
-                };
+                });
             });
         }
 
         setInterval(updateDeviceTable, 5000); // Auto-refresh every 5 seconds
-        attachFormListeners(); // Attach event listeners when the page loads
-
+        attachFormListeners(); // Ensure forms work at page load
     </script>
 
 </body>
