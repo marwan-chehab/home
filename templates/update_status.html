@@ -65,68 +65,51 @@
     <a href="/">Go Home</a>
 
     <script>
-        // Function to update device status
-        async function updateDeviceStatus(deviceType, newStatus) {
-            try {
-                const response = await fetch('/submit_status', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: new URLSearchParams({
-                        device_type: deviceType,
-                        onoff: newStatus
-                    })
-                });
-
-                return response.ok;
-            } catch (error) {
-                console.error('Error:', error);
-                return false;
-            }
-        }
-
-        // Function to fetch and update device statuses
-        async function fetchAndUpdateDeviceStatuses() {
-            try {
-                const response = await fetch('/update_status');
-                const devices = await response.json();
-
-                devices.forEach(device => {
-                    const row = document.getElementById(`device-${device.device_type}`);
-                    if (row) {
-                        // Update status text
-                        const statusElement = row.querySelector('.device-status');
-                        if (statusElement) {
-                            statusElement.textContent = device.status;
-                        }
-
-                        // Update status indicator
-                        const indicatorElement = row.querySelector('.status-indicator');
-                        if (indicatorElement) {
-                            indicatorElement.className = `status-indicator ${device.status === 'on' ? 'green' : 'red'}`;
-                        }
-
-                        // Update timestamp
-                        const timestampElement = row.querySelector('.device-timestamp');
-                        if (timestampElement) {
-                            timestampElement.textContent = device.latest_stamp || 'N/A';
-                        }
-
-                        // Update select dropdown
-                        const selectElement = row.querySelector('select[name="onoff"]');
-                        if (selectElement) {
-                            selectElement.value = device.status;
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error('Error fetching device statuses:', error);
-            }
-        }
-
-        // Event listener for form submissions
         document.addEventListener('DOMContentLoaded', () => {
+            // Function to periodically fetch and update device statuses
+            function updateDeviceStatuses() {
+                fetch('/update_status')
+                    .then(response => response.json())
+                    .then(devices => {
+                        devices.forEach(device => {
+                            const row = document.getElementById(`device-${device.device_type}`);
+                            if (row) {
+                                // Update status text
+                                const statusElement = row.querySelector('.device-status');
+                                if (statusElement) {
+                                    statusElement.textContent = device.status;
+                                }
+
+                                // Update status indicator
+                                const indicatorElement = row.querySelector('.status-indicator');
+                                if (indicatorElement) {
+                                    indicatorElement.className = `status-indicator ${device.status === 'on' ? 'green' : 'red'}`;
+                                }
+
+                                // Update timestamp
+                                const timestampElement = row.querySelector('.device-timestamp');
+                                if (timestampElement) {
+                                    timestampElement.textContent = device.latest_stamp || 'N/A';
+                                }
+
+                                // Update select dropdown
+                                const selectElement = row.querySelector('select[name="onoff"]');
+                                if (selectElement) {
+                                    selectElement.value = device.status;
+                                }
+                            }
+                        });
+                    })
+                    .catch(error => console.error('Error updating statuses:', error));
+            }
+
+            // Initial update
+            updateDeviceStatuses();
+
+            // Periodic update every 5 seconds
+            setInterval(updateDeviceStatuses, 5000);
+
+            // Handle form submissions
             document.querySelectorAll('.update-form').forEach(form => {
                 form.addEventListener('submit', async (event) => {
                     event.preventDefault();
@@ -134,18 +117,27 @@
                     const deviceType = form.dataset.device;
                     const newStatus = form.querySelector('select[name="onoff"]').value;
                     
-                    // Update status
-                    const updated = await updateDeviceStatus(deviceType, newStatus);
-                    
-                    // Fetch updated statuses
-                    if (updated) {
-                        await fetchAndUpdateDeviceStatuses();
+                    try {
+                        const response = await fetch('/submit_status', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                            },
+                            body: new URLSearchParams({
+                                device_type: deviceType,
+                                onoff: newStatus
+                            })
+                        });
+
+                        // Reload the page if the update was successful
+                        if (response.ok) {
+                            location.reload();
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
                     }
                 });
             });
-
-            // Periodic status update
-            setInterval(fetchAndUpdateDeviceStatuses, 5000);
         });
     </script>
 </body>
