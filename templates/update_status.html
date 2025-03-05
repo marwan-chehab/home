@@ -30,31 +30,35 @@
     <h2>Device Control</h2>
 
     <table id="deviceTable">
-        <tr>
-            <th>Device</th>
-            <th>Status</th>
-            <th>Last Updated</th>
-            <th>Update</th>
-        </tr>
-        {% for device in devices %}
-        <tr id="device-{{ device.device_type }}">
-            <td>{{ device.device_type.capitalize() }}</td>
-            <td>
-                <strong class="device-status">{{ device.status }}</strong>
-                <span class="status-indicator {% if device.status == 'on' %}green{% else %}red{% endif %}"></span>
-            </td>
-            <td class="device-timestamp">{{ device.latest_stamp if device.latest_stamp else "N/A" }}</td>
-            <td>
-                <form class="update-form" data-device="{{ device.device_type }}">
-                    <select name="onoff">
-                        <option value="on" {% if device.status == 'off' %}selected{% endif %}>On</option>
-                        <option value="off" {% if device.status == 'on' %}selected{% endif %}>Off</option>
-                    </select>
-                    <button type="submit">Update</button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
+        <thead>
+            <tr>
+                <th>Device</th>
+                <th>Status</th>
+                <th>Last Updated</th>
+                <th>Update</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for device in devices %}
+            <tr id="device-{{ device.device_type }}">
+                <td>{{ device.device_type.capitalize() }}</td>
+                <td>
+                    <strong class="device-status">{{ device.status }}</strong>
+                    <span class="status-indicator {% if device.status == 'on' %}green{% else %}red{% endif %}"></span>
+                </td>
+                <td class="device-timestamp">{{ device.latest_stamp if device.latest_stamp else "N/A" }}</td>
+                <td>
+                    <form class="update-form" data-device="{{ device.device_type }}">
+                        <select name="onoff">
+                            <option value="on" {% if device.status == 'off' %}selected{% endif %}>On</option>
+                            <option value="off" {% if device.status == 'on' %}selected{% endif %}>Off</option>
+                        </select>
+                        <button type="submit">Update</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
     </table>
 
     <br>
@@ -65,11 +69,34 @@
             try {
                 const response = await fetch('/update_status');
                 const devices = await response.json();
+                const tableBody = document.querySelector("#deviceTable tbody");
 
                 devices.forEach(device => {
                     let row = document.getElementById(`device-${device.device_type}`);
 
-                    if (row) {
+                    if (!row) {
+                        // If row does not exist, create it
+                        row = document.createElement("tr");
+                        row.id = `device-${device.device_type}`;
+                        row.innerHTML = `
+                            <td>${device.device_type.charAt(0).toUpperCase() + device.device_type.slice(1)}</td>
+                            <td>
+                                <strong class="device-status">${device.status}</strong>
+                                <span class="status-indicator ${device.status === 'on' ? 'green' : 'red'}"></span>
+                            </td>
+                            <td class="device-timestamp">${device.latest_stamp || "N/A"}</td>
+                            <td>
+                                <form class="update-form" data-device="${device.device_type}">
+                                    <select name="onoff">
+                                        <option value="on" ${device.status === 'off' ? 'selected' : ''}>On</option>
+                                        <option value="off" ${device.status === 'on' ? 'selected' : ''}>Off</option>
+                                    </select>
+                                    <button type="submit">Update</button>
+                                </form>
+                            </td>
+                        `;
+                        tableBody.appendChild(row);
+                    } else {
                         // Update existing row
                         row.querySelector(".device-status").textContent = device.status;
                         row.querySelector(".status-indicator").className = "status-indicator " + (device.status === "on" ? "green" : "red");
@@ -77,39 +104,38 @@
                         row.querySelector("select[name='onoff']").value = device.status;
                     }
                 });
+
             } catch (error) {
                 console.error("Error updating device table:", error);
             }
         }
 
-        document.addEventListener("DOMContentLoaded", () => {
-            // Attach event listener to all update forms
-            document.querySelectorAll(".update-form").forEach(form => {
-                form.addEventListener("submit", async function (event) {
-                    event.preventDefault();
+        // Attach event listener using event delegation
+        document.addEventListener("submit", async function(event) {
+            if (event.target.classList.contains("update-form")) {
+                event.preventDefault();
 
-                    const deviceType = this.dataset.device;
-                    const newStatus = this.querySelector("select[name='onoff']").value;
+                const form = event.target;
+                const deviceType = form.dataset.device;
+                const newStatus = form.querySelector("select[name='onoff']").value;
 
-                    try {
-                        const response = await fetch("/submit_status", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                            body: new URLSearchParams({ device_type: deviceType, onoff: newStatus })
-                        });
+                try {
+                    const response = await fetch("/submit_status", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                        body: new URLSearchParams({ device_type: deviceType, onoff: newStatus })
+                    });
 
-                        if (response.ok) {
-                            fetchDeviceStatus(); // Refresh table immediately after update
-                        }
-                    } catch (error) {
-                        console.error("Error updating status:", error);
+                    if (response.ok) {
+                        fetchDeviceStatus(); // Refresh table immediately after update
                     }
-                });
-            });
-
-            setInterval(fetchDeviceStatus, 5000); // Auto-refresh every 5 seconds
+                } catch (error) {
+                    console.error("Error updating status:", error);
+                }
+            }
         });
 
+        setInterval(fetchDeviceStatus, 5000); // Auto-refresh every 5 seconds
     </script>
 
 </body>
