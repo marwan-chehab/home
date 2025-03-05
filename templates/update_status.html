@@ -29,7 +29,7 @@
 <body>
     <h2>Device Control</h2>
 
-    <table>
+    <table id="deviceTable">
         <tr>
             <th>Device</th>
             <th>Status</th>
@@ -37,16 +37,15 @@
             <th>Update</th>
         </tr>
         {% for device in devices %}
-        <tr>
+        <tr id="device-{{ device.device_type }}">
             <td>{{ device.device_type.capitalize() }}</td>
             <td>
-                <strong>{{ device.status }}</strong>
+                <strong class="device-status">{{ device.status }}</strong>
                 <span class="status-indicator {% if device.status == 'on' %}green{% else %}red{% endif %}"></span>
             </td>
-            <td>{{ device.latest_stamp if device.latest_stamp else "N/A" }}</td> <!-- Fix applied here -->
+            <td class="device-timestamp">{{ device.latest_stamp if device.latest_stamp else "N/A" }}</td>
             <td>
-                <form action="/submit_status" method="POST">
-                    <input type="hidden" name="device_type" value="{{ device.device_type }}">
+                <form class="update-form" data-device="{{ device.device_type }}">
                     <select name="onoff">
                         <option value="on" {% if device.status == 'off' %}selected{% endif %}>On</option>
                         <option value="off" {% if device.status == 'on' %}selected{% endif %}>Off</option>
@@ -60,5 +59,61 @@
 
     <br>
     <a href="/">Go Home</a>
+
+    <script>
+        // Function to fetch and update table data dynamically
+        async function updateDeviceTable() {
+            try {
+                const response = await fetch('/update_status'); // Fetch latest data
+                const devices = await response.json(); // Parse JSON
+
+                devices.forEach(device => {
+                    const row = document.getElementById(`device-${device.device_type}`);
+                    if (row) {
+                        // Update Status
+                        row.querySelector('.device-status').textContent = device.status;
+                        
+                        // Update Indicator Color
+                        let indicator = row.querySelector('.status-indicator');
+                        indicator.className = 'status-indicator ' + (device.status === 'on' ? 'green' : 'red');
+
+                        // Update Timestamp
+                        row.querySelector('.device-timestamp').textContent = device.latest_stamp || "N/A";
+                    }
+                });
+            } catch (error) {
+                console.error("Error updating device table:", error);
+            }
+        }
+
+        // Automatically refresh every 5 seconds
+        setInterval(updateDeviceTable, 5000);
+
+        // Handle form submission dynamically using JavaScript (without page reload)
+        document.querySelectorAll('.update-form').forEach(form => {
+            form.addEventListener('submit', async function (event) {
+                event.preventDefault(); // Prevent default form submission
+
+                const deviceType = this.dataset.device;
+                const newStatus = this.querySelector('select[name="onoff"]').value;
+
+                try {
+                    const response = await fetch('/submit_status', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({ device_type: deviceType, onoff: newStatus })
+                    });
+
+                    if (response.ok) {
+                        updateDeviceTable(); // Refresh data immediately after update
+                    }
+                } catch (error) {
+                    console.error("Error updating status:", error);
+                }
+            });
+        });
+
+    </script>
+
 </body>
 </html>
