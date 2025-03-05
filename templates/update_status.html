@@ -65,8 +65,7 @@
     <a href="/">Go Home</a>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Periodic AJAX refresh function
+        document.addEventListener("DOMContentLoaded", () => {
             function refreshDeviceStatuses() {
                 fetch('/update_status')
                     .then(response => response.json())
@@ -74,66 +73,40 @@
                         devices.forEach(device => {
                             const row = document.getElementById(`device-${device.device_type}`);
                             if (row) {
-                                // Update status text
-                                const statusElement = row.querySelector('.device-status');
-                                if (statusElement) {
-                                    statusElement.textContent = device.status;
-                                }
-
-                                // Update status indicator
-                                const indicatorElement = row.querySelector('.status-indicator');
-                                if (indicatorElement) {
-                                    indicatorElement.className = `status-indicator ${device.status === 'on' ? 'green' : 'red'}`;
-                                }
-
-                                // Update timestamp
-                                const timestampElement = row.querySelector('.device-timestamp');
-                                if (timestampElement) {
-                                    timestampElement.textContent = device.latest_stamp || 'N/A';
-                                }
-
-                                // Update select dropdown
-                                const selectElement = row.querySelector('select[name="onoff"]');
-                                if (selectElement) {
-                                    selectElement.value = device.status;
-                                }
+                                row.querySelector('.device-status').textContent = device.status;
+                                row.querySelector('.status-indicator').className = `status-indicator ${device.status === 'on' ? 'green' : 'red'}`;
+                                row.querySelector('.device-timestamp').textContent = device.latest_stamp || 'N/A';
+                                row.querySelector('select[name="onoff"]').value = device.status;
                             }
                         });
                     })
                     .catch(error => console.error('Error refreshing device statuses:', error));
             }
 
-            // Start periodic refresh every 2 seconds
-            setInterval(refreshDeviceStatuses, 2000);
+            setInterval(refreshDeviceStatuses, 2000); // Auto-refresh every 2 seconds
 
-            // Update button functionality
-            document.querySelectorAll('.update-form').forEach(form => {
-                form.addEventListener('submit', async (event) => {
+            document.addEventListener('submit', async (event) => {
+                if (event.target.classList.contains('update-form')) {
                     event.preventDefault();
-                    
+
+                    const form = event.target;
                     const deviceType = form.dataset.device;
                     const newStatus = form.querySelector('select[name="onoff"]').value;
-                    
+
                     try {
                         const response = await fetch('/submit_status', {
                             method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded',
-                            },
-                            body: new URLSearchParams({
-                                device_type: deviceType,
-                                onoff: newStatus
-                            })
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: new URLSearchParams({ device_type: deviceType, onoff: newStatus })
                         });
 
-                        // Reload the page if the update was successful
                         if (response.ok) {
-                            location.reload();
+                            refreshDeviceStatuses(); // Update UI immediately without reload
                         }
                     } catch (error) {
                         console.error('Error:', error);
                     }
-                });
+                }
             });
         });
     </script>
