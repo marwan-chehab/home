@@ -66,8 +66,8 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Function to periodically fetch and update device statuses
-            function updateDeviceStatuses() {
+            // Periodic AJAX refresh function
+            function refreshDeviceStatuses() {
                 fetch('/update_status')
                     .then(response => response.json())
                     .then(devices => {
@@ -100,16 +100,13 @@
                             }
                         });
                     })
-                    .catch(error => console.error('Error updating statuses:', error));
+                    .catch(error => console.error('Error refreshing device statuses:', error));
             }
 
-            // Initial update
-            updateDeviceStatuses();
+            // Start periodic refresh every 2 seconds
+            setInterval(refreshDeviceStatuses, 2000);
 
-            // Periodic update every 5 seconds
-            setInterval(updateDeviceStatuses, 5000);
-
-            // Handle form submissions
+            // Update button functionality
             document.querySelectorAll('.update-form').forEach(form => {
                 form.addEventListener('submit', async (event) => {
                     event.preventDefault();
