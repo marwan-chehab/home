@@ -25,7 +25,7 @@ def get_latest_status():
         try:
             cursor = connection.cursor(dictionary=True)
             query = """
-                SELECT dc.device_type, dc.status, dc.stamp
+                SELECT dc.device_type, dc.status, dc.stamp AS latest_stamp
                 FROM device_control dc
                 WHERE dc.stamp = (
                     SELECT MAX(stamp)
@@ -36,12 +36,19 @@ def get_latest_status():
             """
             cursor.execute(query)
             devices = cursor.fetchall()
+
+            # Convert datetime objects to strings
+            for device in devices:
+                if "latest_stamp" in device and isinstance(device["latest_stamp"], datetime):
+                    device["latest_stamp"] = device["latest_stamp"].strftime("%Y-%m-%d %H:%M:%S")
+
             cursor.close()
             connection.close()
             return devices
         except Error as e:
             print(f"Error fetching device statuses: {e}")
     return []
+
 
 @app.route('/update_status')
 def update_status():
