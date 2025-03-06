@@ -64,85 +64,86 @@
     <br>
     <a href="/">Go Home</a>
 
-    <script>
-        // Ensure jQuery is fully loaded
-        if (typeof jQuery == "undefined") {
-            console.warn("⚠️ jQuery is missing! Loading manually...");
-            var script = document.createElement('script');
-            script.src = "https://code.jquery.com/jquery-3.6.0.min.js";
-            script.type = "text/javascript";
-            script.onload = function () {
-                console.log("✅ jQuery Loaded Successfully!");
-                initUpdateStatus();
-            };
-            document.head.appendChild(script);
-        } else {
-            console.log("✅ jQuery is already loaded!");
+<script>
+    // Ensure jQuery is fully loaded
+    if (typeof jQuery == "undefined") {
+        console.warn("⚠️ jQuery is missing! Loading manually...");
+        var script = document.createElement('script');
+        script.src = "https://code.jquery.com/jquery-3.6.0.min.js";
+        script.type = "text/javascript";
+        script.onload = function () {
+            console.log("✅ jQuery Loaded Successfully!");
             initUpdateStatus();
-        }
+        };
+        document.head.appendChild(script);
+    } else {
+        console.log("✅ jQuery is already loaded!");
+        initUpdateStatus();
+    }
 
-        function initUpdateStatus() {
-            console.log("🔄 Initializing Update System...");
+    function initUpdateStatus() {
+        console.log("🔄 Initializing Update System...");
 
-            function fetchDeviceStatuses() {
-                console.log("📡 Fetching updated statuses...");
-                $.ajax({
-                    url: "/get_device_statuses",
-                    type: "GET",
-                    success: function(devices) {
-                        console.log("✅ Received:", devices);
+        function fetchDeviceStatuses() {
+            console.log("📡 Fetching updated statuses...");
+            $.ajax({
+                url: "/get_device_statuses",
+                type: "GET",
+                success: function(devices) {
+                    console.log("✅ Received:", devices);
 
-                        devices.forEach(device => {
-                            const row = $("#device-" + device.device_type);
-                            if (row.length) {
-                                // Update status text
-                                row.find(".device-status").text(device.status);
+                    devices.forEach(device => {
+                        const row = $("#device-" + device.device_type);
+                        if (row.length) {
+                            // Update status text
+                            row.find(".device-status").text(device.status);
 
-                                // Update status indicator
-                                row.find(".status-indicator").removeClass("green red")
-                                    .addClass(device.status === "on" ? "green" : "red");
+                            // Update status indicator
+                            row.find(".status-indicator").removeClass("green red")
+                                .addClass(device.status === "on" ? "green" : "red");
 
-                                // Update timestamp
-                                row.find(".device-timestamp").text(device.latest_stamp || "N/A");
+                            // Update timestamp
+                            row.find(".device-timestamp").text(device.latest_stamp || "N/A");
 
-                                // Update dropdown selection
-                                row.find("select[name='onoff']").val(device.status);
-                            }
-                        });
-                    },
-                    error: function(error) {
-                        console.error("❌ Error fetching statuses:", error);
-                    }
-                });
-            }
-
-            // Handle form submission with AJAX
-            $(".update-form").on("submit", function(event) {
-                event.preventDefault();
-                
-                const form = $(this);
-                const deviceType = form.data("device");
-                const newStatus = form.find("select[name='onoff']").val();
-
-                console.log("📡 Updating:", deviceType, "->", newStatus);
-
-                $.ajax({
-                    url: "/submit_status",
-                    type: "POST",
-                    data: { device_type: deviceType, onoff: newStatus },
-                    success: function(response) {
-                        console.log("✅ Update successful:", response);
-                        fetchDeviceStatuses(); // Refresh after update
-                    },
-                    error: function(error) {
-                        console.error("❌ Error updating device:", error);
-                    }
-                });
+                            // Update dropdown selection
+                            row.find("select[name='onoff']").val(device.status);
+                        }
+                    });
+                },
+                error: function(error) {
+                    console.error("❌ Error fetching statuses:", error);
+                }
             });
-
-            // Fetch data every 2 seconds
-            setInterval(fetchDeviceStatuses, 2000);
         }
-    </script>
+
+        // ✅ Fix: Use delegated event listener for dynamically updated forms
+        $(document).on("submit", ".update-form", function(event) {
+            event.preventDefault();
+            
+            const form = $(this);
+            const deviceType = form.data("device");
+            const newStatus = form.find("select[name='onoff']").val();
+
+            console.log("📡 Updating:", deviceType, "->", newStatus);
+
+            $.ajax({
+                url: "/submit_status",
+                type: "POST",
+                data: { device_type: deviceType, onoff: newStatus },
+                success: function(response) {
+                    console.log("✅ Update successful:", response);
+                    fetchDeviceStatuses(); // ✅ Refresh after update
+                },
+                error: function(error) {
+                    console.error("❌ Error updating device:", error);
+                }
+            });
+        });
+
+        // Fetch data every 2 seconds
+        setInterval(fetchDeviceStatuses, 2000);
+    }
+</script>
+
 </body>
 </html>
