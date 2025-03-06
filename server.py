@@ -49,6 +49,10 @@ def get_latest_status():
             print(f"Error fetching device statuses: {e}")
     return []
 
+@app.route('/get_device_statuses')
+def get_device_statuses():
+    devices = get_latest_status()
+    return jsonify(devices)  # ✅ Ensures it returns JSON instead of HTML
 
 @app.route('/update_status')
 def update_status():
