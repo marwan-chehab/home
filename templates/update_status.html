@@ -63,11 +63,10 @@
 
 
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
     function fetchDeviceStatuses() {
         $.ajax({
-            url: "/update_status",
+            url: "/get_device_statuses",  // ✅ Use the new route for JSON
             type: "GET",
             success: function(devices) {
                 devices.forEach(device => {
@@ -102,6 +101,7 @@
         setInterval(fetchDeviceStatuses, 2000); // Refresh every 2 seconds
     });
 </script>
+
 
     
 </body>
