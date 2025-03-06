@@ -25,6 +25,44 @@
         .green { background-color: green; }
         .red { background-color: red; }
     </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        function fetchDeviceStatuses() {
+            $.ajax({
+                url: "/update_status",
+                type: "GET",
+                success: function(devices) {
+                    devices.forEach(device => {
+                        const row = $(`#device-${device.device_type}`);
+
+                        if (row.length) {
+                            // Update the status text
+                            row.find(".device-status").text(device.status);
+
+                            // Update the status indicator
+                            row.find(".status-indicator")
+                                .removeClass("green red")
+                                .addClass(device.status === "on" ? "green" : "red");
+
+                            // Update timestamp
+                            row.find(".device-timestamp").text(device.latest_stamp || "N/A");
+
+                            // Update dropdown selection
+                            row.find("select[name='onoff']").val(device.status);
+                        }
+                    });
+                },
+                error: function(error) {
+                    console.error("Error fetching device statuses:", error);
+                }
+            });
+        }
+
+        $(document).ready(function() {
+            fetchDeviceStatuses(); // Initial fetch
+            setInterval(fetchDeviceStatuses, 2000); // Refresh every 2 seconds
+        });
+    </script>
 </head>
 <body>
     <h2>Device Control</h2>
@@ -37,15 +75,15 @@
             <th>Update</th>
         </tr>
         {% for device in devices %}
-        <tr>
+        <tr id="device-{{ device.device_type }}">
             <td>{{ device.device_type.capitalize() }}</td>
             <td>
-                <strong>{{ device.status }}</strong>
+                <strong class="device-status">{{ device.status }}</strong>
                 <span class="status-indicator {% if device.status == 'on' %}green{% else %}red{% endif %}"></span>
             </td>
-            <td>{{ device.latest_stamp if device.latest_stamp else "N/A" }}</td> <!-- Fix applied here -->
+            <td class="device-timestamp">{{ device.latest_stamp if device.latest_stamp else "N/A" }}</td>
             <td>
-                <form action="/submit_status" method="POST">
+                <form class="update-form" data-device="{{ device.device_type }}">
                     <input type="hidden" name="device_type" value="{{ device.device_type }}">
                     <select name="onoff">
                         <option value="on" {% if device.status == 'off' %}selected{% endif %}>On</option>
