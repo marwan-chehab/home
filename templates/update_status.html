@@ -84,37 +84,38 @@
     function initUpdateStatus() {
         console.log("🔄 Initializing Update System...");
 
-        function fetchDeviceStatuses() {
-            console.log("📡 Fetching updated statuses...");
-            $.ajax({
-                url: "/get_device_statuses",
-                type: "GET",
-                success: function(devices) {
-                    console.log("✅ Received:", devices);
-
-                    devices.forEach(device => {
-                        const row = $("#device-" + device.device_type);
-                        if (row.length) {
-                            // Update status text
-                            row.find(".device-status").text(device.status);
-
-                            // Update status indicator
-                            row.find(".status-indicator").removeClass("green red")
-                                .addClass(device.status === "on" ? "green" : "red");
-
-                            // Update timestamp
-                            row.find(".device-timestamp").text(device.latest_stamp || "N/A");
-
-                            // Update dropdown selection
-                            row.find("select[name='onoff']").val(device.status);
-                        }
-                    });
-                },
-                error: function(error) {
-                    console.error("❌ Error fetching statuses:", error);
-                }
-            });
-        }
+    function fetchDeviceStatuses() {
+        console.log("📡 Fetching updated statuses...");
+        $.ajax({
+            url: "/get_device_statuses",
+            type: "GET",
+            success: function(devices) {
+                console.log("✅ Received:", devices);
+    
+                devices.forEach(device => {
+                    const row = $("#device-" + device.device_type);
+                    if (row.length) {
+                        // Update status text
+                        row.find(".device-status").text(device.status);
+    
+                        // Update status indicator
+                        row.find(".status-indicator").removeClass("green red")
+                            .addClass(device.status === "on" ? "green" : "red");
+    
+                        // Update timestamp
+                        row.find(".device-timestamp").text(device.latest_stamp || "N/A");
+    
+                        // ✅ Fix: Toggle dropdown to show the opposite status
+                        const selectElement = row.find("select[name='onoff']");
+                        selectElement.val(device.status === "on" ? "off" : "on");
+                    }
+                });
+            },
+            error: function(error) {
+                console.error("❌ Error fetching statuses:", error);
+            }
+        });
+    }
 
         // ✅ Fix: Use delegated event listener for dynamically updated forms
         $(document).on("submit", ".update-form", function(event) {
