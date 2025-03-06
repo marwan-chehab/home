@@ -64,43 +64,45 @@
 
 
 <script>
-    function fetchDeviceStatuses() {
-        $.ajax({
-            url: "/get_device_statuses",  // ✅ Use the new route for JSON
-            type: "GET",
-            success: function(devices) {
-                devices.forEach(device => {
-                    const row = $("tr").filter((_, tr) => 
-                        $(tr).find("input[name='device_type']").val() === device.device_type
-                    );
-
-                    if (row.length) {
-                        // Update status text
-                        row.find("strong").text(device.status);
-
-                        // Update status indicator
-                        row.find(".status-indicator").removeClass("green red")
-                            .addClass(device.status === "on" ? "green" : "red");
-
-                        // Update timestamp
-                        row.find("td:nth-child(3)").text(device.latest_stamp || "N/A");
-
-                        // Update dropdown selection
-                        row.find("select[name='onoff']").val(device.status);
-                    }
-                });
-            },
-            error: function(error) {
-                console.error("Error fetching device statuses:", error);
-            }
-        });
-    }
-
     $(document).ready(function() {
-        fetchDeviceStatuses(); // Fetch initially
-        setInterval(fetchDeviceStatuses, 2000); // Refresh every 2 seconds
+        console.log("✅ jQuery is ready!"); // Debugging
+
+        function fetchDeviceStatuses() {
+            console.log("🔄 Fetching device statuses...");
+
+            $.ajax({
+                url: "/get_device_statuses",
+                type: "GET",
+                success: function(devices) {
+                    console.log("📡 Received devices:", devices);
+
+                    devices.forEach(device => {
+                        console.log("🔄 Updating device:", device.device_type, "Status:", device.status);
+
+                        const row = $("tr").filter((_, tr) => 
+                            $(tr).find("input[name='device_type']").val() === device.device_type
+                        );
+
+                        if (row.length) {
+                            row.find("strong").text(device.status);
+                            row.find(".status-indicator").removeClass("green red")
+                                .addClass(device.status === "on" ? "green" : "red");
+                            row.find("td:nth-child(3)").text(device.latest_stamp || "N/A");
+                            row.find("select[name='onoff']").val(device.status);
+                        }
+                    });
+                },
+                error: function(error) {
+                    console.error("❌ Error fetching device statuses:", error);
+                }
+            });
+        }
+
+        fetchDeviceStatuses(); // Initial fetch
+        setInterval(fetchDeviceStatuses, 2000); // Auto-refresh every 2 seconds
     });
 </script>
+
 
 
     
