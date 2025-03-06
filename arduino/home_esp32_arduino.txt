@@ -23,8 +23,8 @@ void setup() {
     preferences.begin("my-app", false);
 
     // Load stored WiFi credentials
-    ssid = preferences.getString("ssid", "MCT");
-    pw = preferences.getString("password", "190203B3E8");
+    ssid = preferences.getString("ssid", "Marwan-2.4G-");
+    pw = preferences.getString("password", "z31n4bm4ri4m_$20142018$");
     serverUrl = preferences.getString("serverUrl", "http://35.181.4.56:5000/get_device_statuses");
 
     Serial.println("🌐 Connecting to WiFi...");
@@ -62,9 +62,10 @@ void loop() {
     } else {
         SerialBT.println("⚠️ WiFi Disconnected!");
         Serial.println("⚠️ WiFi Disconnected!");
+        reconnectWiFi();
     }
     
-    delay(5000);  // Fetch updates every 5 seconds
+    delay(1000);  // Fetch updates every 5 seconds
 }
 
 // ✅ Fetch all devices dynamically from Flask
