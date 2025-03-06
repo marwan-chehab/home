@@ -3,102 +3,109 @@
 
 #define SLAVE_ADDR 8  // I2C address of the Arduino Nano
 
-String receivedData = "";  // Store received data
+String receivedData = "";  // Buffer to store received JSON
 bool newDataAvailable = false;  // Flag for new data
 
 // Assign pins for devices
-const int burnerPin = 5;  // D2 (Physical Pin 5)
-const int heaterPin = 7;  // D4 (Physical Pin 7)
-const int pumpPin = 10;   // D7 (Physical Pin 10)
+const int burnerPin = 2;
+const int heaterPin = 7;
+const int pumpPin = 10;
 
-// Function to handle incoming data
+// ✅ Improved JSON Buffering Logic
 void receiveEvent(int bytes) {
-    Serial.println("📩 I2C Data Received!");  // Debugging
-    
-    receivedData = "";  // Clear previous data
     while (Wire.available()) {
         char c = Wire.read();
         receivedData += c;
     }
 
-    Serial.print("🔍 Raw Data: ");
-    Serial.println(receivedData);  // Show raw received data
+    //Serial.print("🔍 Raw Data: ");
+    //Serial.println(receivedData);  
 
-    // ✅ Only process if JSON is valid
+    // ✅ Check if we have a complete JSON message
     if (receivedData.startsWith("{") && receivedData.endsWith("}")) {
-        newDataAvailable = true;  // Set flag when new data arrives
+        newDataAvailable = true;
     } else {
         Serial.println("⚠️ Incomplete JSON received, waiting for next part...");
     }
 }
 
 void setup() {
-    Serial.begin(9600);
-    while (!Serial);  // Wait for serial to initialize
-
-    Serial.println("🔄 Arduino Nano Starting...");
-
-    Wire.begin(SLAVE_ADDR); // Initialize I2C as a slave
-    Wire.onReceive(receiveEvent); // Register receive event
+    Serial.begin(115200);
+    Wire.begin(SLAVE_ADDR);
+    Wire.onReceive(receiveEvent);
 
     pinMode(burnerPin, OUTPUT);
     pinMode(heaterPin, OUTPUT);
     pinMode(pumpPin, OUTPUT);
-
-    Serial.println("✅ I2C Slave Initialized");
 }
 
 void loop() {
-    if (newDataAvailable) {  // Check if new data is received
-        Serial.println("📩 Processing Received Data...");
+    if (newDataAvailable) {
+        //Serial.println("📩 Processing Received Data...");
+        
+        // ✅ Print raw JSON before parsing
+        //Serial.println("🔍 Raw Data: ");
+        //Serial.println(receivedData);
 
-        // Parse JSON
-        StaticJsonDocument<256> doc;
-        DeserializationError error = deserializeJson(doc, receivedData);
+        // ✅ Split multiple JSON objects if received together
+        int startIdx = 0;
+        while (startIdx < receivedData.length()) {
+            int openBrace = receivedData.indexOf('{', startIdx);
+            int closeBrace = receivedData.indexOf('}', openBrace);
+            
+            if (openBrace == -1 || closeBrace == -1) break;  // No valid JSON found
 
-        if (!error) {
-            const char* deviceType = doc["device"];
-            const char* statusValue = doc["status"];
+            // Extract a single JSON object
+            String jsonObject = receivedData.substring(openBrace, closeBrace + 1);
+            startIdx = closeBrace + 1;  // Move to the next object
+            
+            // ✅ Parse the JSON object
+            StaticJsonDocument<256> doc;
+            DeserializationError error = deserializeJson(doc, jsonObject);
+            
+            if (!error) {
+                //Serial.print("📜 Parsed JSON: ");
+                serializeJson(doc, Serial);  // Print formatted JSON
+                Serial.println();
 
-            Serial.print("🔍 Extracted Device: ");
-            Serial.println(deviceType);
-            Serial.print("🔍 Extracted Status: ");
-            Serial.println(statusValue);
+                String deviceType = doc["device"];
+                String status = doc["status"];
 
-            // Control devices based on extracted values
-            if (strcmp(deviceType, "burner") == 0) {
-                setOutput(burnerPin, statusValue);
-            } else if (strcmp(deviceType, "heater") == 0) {
-                setOutput(heaterPin, statusValue);
-            } else if (strcmp(deviceType, "pump") == 0) {
-                setOutput(pumpPin, statusValue);
+                /*
+                Serial.print("🔍 Extracted Device: ");
+                Serial.println(deviceType);
+                Serial.print("🔍 Extracted Status: ");
+                Serial.println(status);
+                */
+                
+                if (deviceType == "burner") {
+                    setOutput(burnerPin, status);
+                } 
+                if (deviceType == "heater") {
+                    setOutput(heaterPin, status);
+                } 
+                if (deviceType == "pump") {
+                    setOutput(pumpPin, status);
+                }
             } else {
-                Serial.println("⚠️ Unknown device type received!");
+                Serial.println("❌ JSON Parsing Failed! Dumping raw object:");
+                Serial.println(jsonObject);
             }
-
-        } else {
-            Serial.println("❌ JSON Parsing Failed! Dumping raw data:");
-            Serial.println(receivedData);  // Print raw data for debugging
         }
 
-        newDataAvailable = false;  // Reset flag
+        // ✅ Clear buffer after processing
+        receivedData = "";
+        newDataAvailable = false;
     }
-    
+
     delay(500);
 }
 
-// ✅ Function to update pin status dynamically
-void setOutput(int pin, const char* status) {
-    static bool lastState[3] = {LOW, LOW, LOW}; // Store previous states for each pin
 
-    bool newState = (strcmp(status, "on") == 0) ? HIGH : LOW;
-
-    // Only update the pin if there's a change
-    if (newState != lastState[pin]) {
-        digitalWrite(pin, newState);
-        lastState[pin] = newState;
-        Serial.print("✅ Updated ");
-        Serial.print(pin);
-        Serial.println(newState ? " -> ON" : " -> OFF");
-    }
+void setOutput(int pin, String status) {
+    bool newState = (status == "on") ? HIGH : LOW;
+    digitalWrite(pin, newState);
+    //Serial.print("✅ Updated ");
+    //Serial.print(pin);
+    //Serial.println(newState ? " -> ON" : " -> OFF");
 }
