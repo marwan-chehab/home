@@ -1,11 +1,13 @@
 #include <Wire.h>
 #include <ArduinoJson.h>
 #include "BluetoothSerial.h"
-#include <WiFi.h>
+#include <WiFi.h>   // ✅ Corrected
 #include <HTTPClient.h>
 #include <Preferences.h>
 
-#define SLAVE_ADDR 8
+// Define I2C Slave Address for Arduino
+#define SLAVE_ADDR 8  
+#define I2C_MAX_LENGTH 30  // Ensure we stay within safe I2C limits
 
 String ssid;
 String pw;
@@ -16,8 +18,11 @@ Preferences preferences;
 
 void setup() {
     Serial.begin(115200);
+    
+    Serial.println("🔄 Initializing Preferences...");
     preferences.begin("my-app", false);
 
+    // Load stored WiFi credentials
     ssid = preferences.getString("ssid", "Marwan-2.4G-");
     pw = preferences.getString("password", "z31n4bm4ri4m_$20142018$");
     serverUrl = preferences.getString("serverUrl", "http://35.181.4.56:5000/get_device_statuses");
@@ -33,14 +38,17 @@ void setup() {
     }
 
     if (WiFi.status() == WL_CONNECTED) {
-        Serial.println("\n✅ Connected to WiFi: " + WiFi.localIP());
+        Serial.println("\n✅ Connected to WiFi");
+        Serial.print("IP Address: ");
+        Serial.println(WiFi.localIP());
     } else {
         Serial.println("\n❌ Failed to connect to WiFi.");
     }
 
-    SerialBT.begin("ESPBT");
-    Wire.begin();
-    Serial.println("✅ ESP32 Ready");
+    SerialBT.begin("ESPBT");  
+    Serial.println("📡 Bluetooth started. Pair and send commands.");
+    
+    Wire.begin();  
 }
 
 void loop() {
@@ -52,61 +60,77 @@ void loop() {
     if (WiFi.status() == WL_CONNECTED) {
         fetchAndSendDeviceStatuses();
     } else {
+        SerialBT.println("⚠️ WiFi Disconnected!");
         Serial.println("⚠️ WiFi Disconnected!");
         reconnectWiFi();
     }
-    delay(2000);  // Increased delay to avoid flooding I2C
+    
+    delay(1000);  // Fetch updates every 5 seconds
 }
 
+// ✅ Fetch all devices dynamically from Flask
 void fetchAndSendDeviceStatuses() {
+    Serial.println("📡 Fetching Device Statuses...");
+    
     HTTPClient http;
     http.begin(serverUrl);
+    
     int httpResponseCode = http.GET();
-
     if (httpResponseCode > 0) {
         String payload = http.getString();
-        Serial.println("📩 Received from Flask: " + payload);
+        Serial.println("📩 Received JSON: " + payload);
 
+        // Parse JSON response
         DynamicJsonDocument doc(1024);
         DeserializationError error = deserializeJson(doc, payload);
+        if (error) {
+            Serial.println("❌ JSON Parsing Failed! Skipping...");
+            return;
+        }
 
-        if (!error) {
-            for (JsonObject device : doc.as<JsonArray>()) {
-                String deviceType = device["device_type"].as<String>();
-                String status = device["status"].as<String>();
-                String dataToSend = "{\"device\":\"" + deviceType + "\",\"status\":\"" + status + "\"}";
-                sendToArduino(dataToSend);
-            }
-        } else {
-            Serial.println("❌ JSON Parsing Failed: " + String(error.c_str()));
+        // Iterate through each device in the JSON array
+        for (JsonObject device : doc.as<JsonArray>()) {
+            String deviceType = device["device_type"].as<String>();
+            String status = device["status"].as<String>();
+
+            Serial.print("📡 Sending to Arduino: ");
+            Serial.print(deviceType);
+            Serial.print(" -> ");
+            Serial.println(status);
+
+            // Create JSON string for I2C transmission
+            String dataToSend = "{\"device\":\"" + deviceType + "\",\"status\":\"" + status + "\"}";
+            sendToArduino(dataToSend);
         }
     } else {
-        Serial.print("❌ HTTP Error: ");
+        Serial.print("❌ HTTP Request Failed! Code: ");
         Serial.println(httpResponseCode);
     }
+
     http.end();
 }
 
+// ✅ Send data to Arduino over I2C (Chunked Transmission)
 void sendToArduino(String data) {
     Serial.print("📡 I2C Sending: ");
     Serial.println(data);
 
-    Wire.beginTransmission(SLAVE_ADDR);
-    int bytesWritten = Wire.write((const uint8_t*)data.c_str(), data.length());
-    int result = Wire.endTransmission();
-    Serial.print("📏 Bytes Written: ");
-    Serial.print(bytesWritten);
-    Serial.print(" | Result: ");
-    Serial.println(result);  // 0 = success
+    int dataLength = data.length();
+    for (int i = 0; i < dataLength; i += I2C_MAX_LENGTH) {
+        String chunk = data.substring(i, i + I2C_MAX_LENGTH);  // Break data into chunks
+        Wire.beginTransmission(SLAVE_ADDR);
+        Wire.write((const uint8_t*)chunk.c_str(), chunk.length());
+        Wire.endTransmission();
+        delay(10);  // Small delay to ensure Arduino processes each chunk
+    }
 
-    delay(50);
-
+    // Send termination character to mark end of JSON message
     Wire.beginTransmission(SLAVE_ADDR);
     Wire.write('\n');
     Wire.endTransmission();
 }
 
-// Bluetooth and WiFi handling functions remain unchanged...
+// ✅ Handle Bluetooth Input for WiFi/Server Config
 void handleBluetoothInput(String input) {
     input.trim();
     bool shouldReconnect = false;
@@ -126,16 +150,23 @@ void handleBluetoothInput(String input) {
         preferences.putString("serverUrl", serverUrl);
         SerialBT.println("✅ Server URL updated.");
     } else {
-        SerialBT.println("❌ Invalid command. Use: ssid:<value>, pw:<value>, serverUrl:<value>");
+        SerialBT.println("❌ Invalid command. Use:");
+        SerialBT.println("ssid:<value>");
+        SerialBT.println("pw:<value>");
+        SerialBT.println("serverUrl:<value>");
     }
 
-    if (shouldReconnect) reconnectWiFi();
+    if (shouldReconnect) {
+        reconnectWiFi();
+    }
 }
 
+// ✅ Reconnect to WiFi
 void reconnectWiFi() {
     SerialBT.println("🔄 Reconnecting to WiFi...");
     WiFi.disconnect();
     delay(1000);
+
     WiFi.begin(ssid.c_str(), pw.c_str());
 
     int retry = 0;
@@ -147,10 +178,15 @@ void reconnectWiFi() {
     }
 
     if (WiFi.status() == WL_CONNECTED) {
-        Serial.println("\n✅ Reconnected to WiFi: " + WiFi.localIP());
-        SerialBT.println("\n✅ Reconnected to WiFi: " + WiFi.localIP());
+        Serial.println("\n✅ Reconnected to WiFi.");
+        Serial.print("New IP Address: ");
+        Serial.println(WiFi.localIP());
+
+        SerialBT.println("\n✅ Reconnected to WiFi.");
+        SerialBT.print("New IP Address: ");
+        SerialBT.println(WiFi.localIP());
     } else {
-        Serial.println("\n❌ Failed to reconnect.");
-        SerialBT.println("\n❌ Failed to reconnect.");
+        Serial.println("\n❌ Failed to reconnect to WiFi.");
+        SerialBT.println("\n❌ Failed to reconnect to WiFi.");
     }
 }
