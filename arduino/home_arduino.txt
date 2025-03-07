@@ -1,36 +1,24 @@
 #include <Wire.h>
 #include <ArduinoJson.h>
 
-#define SLAVE_ADDR 8
+#define SLAVE_ADDR 8  // I2C address of the Arduino Nano
 
-String receivedData = "";
-bool newDataAvailable = false;
+String receivedData = "";  // Buffer to store received JSON
+bool newDataAvailable = false;  // Flag for new data
 
+// Assign pins for devices
 const int burnerPin = 2;
 const int heaterPin = 7;
 const int pumpPin = 10;
 
+// ✅ Improved JSON Buffering Logic
 void receiveEvent(int bytes) {
-    Serial.print("📥 Received ");
-    Serial.print(bytes);
-    Serial.println(" bytes:");
-    
     while (Wire.available()) {
         char c = Wire.read();
-        Serial.print(" [");
-        Serial.print(c);
-        Serial.print("]");
-        if (c == '\n') {
-            Serial.print("\n🔍 Raw Data: ");
-            Serial.println(receivedData);
-            if (receivedData.startsWith("{") && receivedData.endsWith("}")) {
-                newDataAvailable = true;
-            } else {
-                Serial.println("⚠️ Invalid JSON received: " + receivedData);
-                receivedData = "";
-            }
-        } else {
-            receivedData += c;
+        receivedData += c;  // ✅ Append each received character
+
+        if (c == '\n') {  // ✅ Process only when a newline is received
+            newDataAvailable = true;
         }
     }
 }
@@ -43,41 +31,61 @@ void setup() {
     pinMode(burnerPin, OUTPUT);
     pinMode(heaterPin, OUTPUT);
     pinMode(pumpPin, OUTPUT);
-
-    Serial.println("✅ Arduino Nano Ready");
 }
 
 void loop() {
     if (newDataAvailable) {
-        StaticJsonDocument<256> doc;
-        DeserializationError error = deserializeJson(doc, receivedData);
+        Serial.println("🔍 Processing Full JSON Buffer:");
+        Serial.println(receivedData);  // ✅ Print entire received buffer
 
-        if (!error) {
-            String deviceType = doc["device"];
-            String status = doc["status"];
+        int startIdx = 0;
+        while (startIdx < receivedData.length()) {
+            int openBrace = receivedData.indexOf('{', startIdx);
+            int closeBrace = receivedData.indexOf('}', openBrace);
 
-            Serial.print("📜 Device: ");
-            Serial.print(deviceType);
-            Serial.print(" -> ");
-            Serial.println(status);
+            if (openBrace == -1 || closeBrace == -1) break;  // No valid JSON found
 
-            if (deviceType == "burner") setOutput(burnerPin, status);
-            if (deviceType == "heater") setOutput(heaterPin, status);
-            if (deviceType == "pump") setOutput(pumpPin, status);
-        } else {
-            Serial.println("❌ JSON Parsing Failed: " + String(error.c_str()));
+            // ✅ Extract a single JSON object
+            String jsonObject = receivedData.substring(openBrace, closeBrace + 1);
+            startIdx = closeBrace + 1;  // Move to the next object
+
+            // ✅ Parse the JSON object
+            StaticJsonDocument<256> doc;
+            DeserializationError error = deserializeJson(doc, jsonObject);
+
+            if (!error) {
+                String deviceType = doc["device"];
+                String status = doc["status"];
+
+                Serial.print("✅ Parsed: ");
+                Serial.print(deviceType);
+                Serial.print(" -> ");
+                Serial.println(status);
+
+                // ✅ Control the device based on received status
+                if (deviceType == "burner") setOutput(burnerPin, status);
+                if (deviceType == "heater") setOutput(heaterPin, status);
+                if (deviceType == "pump") setOutput(pumpPin, status);
+            } else {
+                Serial.println("❌ JSON Parsing Failed! Dumping raw object:");
+                Serial.println(jsonObject);
+            }
         }
 
-        receivedData = "";
+        receivedData = "";  // ✅ Clear buffer after processing
         newDataAvailable = false;
     }
-    delay(100);
+
+    delay(500);
 }
 
 void setOutput(int pin, String status) {
+    static bool lastState[11] = {LOW}; // Assuming max 11 pins, indexed by pin number
+
     bool newState = (status == "on") ? HIGH : LOW;
-    digitalWrite(pin, newState);
-    Serial.print("✅ Pin ");
-    Serial.print(pin);
-    Serial.println(newState ? " -> ON" : " -> OFF");
+
+    if (lastState[pin] != newState) { // Only update if state changes
+        digitalWrite(pin, newState);
+        lastState[pin] = newState;
+    }
 }
