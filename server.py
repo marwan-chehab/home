@@ -109,5 +109,47 @@ def device(device_type):
         print(f"An unexpected error occurred: {e}")
         return jsonify({"error": "An unexpected error occurred"}), 500
 
+@app.route('/growatt', methods=['POST'])
+def growatt():
+    data = request.get_json()
+
+    required_fields = [
+        'inverter_id', 'battery_voltage', 'battery_soc', 'output_current',
+        'inverter_current', 'inverter_temp', 'fan_speed_1', 'fan_speed_2',
+        'pv_input_power', 'grid_voltage', 'line_frequency', 'output_voltage',
+        'output_frequency', 'ac_charge_current', 'solar_buck1_current',
+        'solar_buck2_current', 'total_solar_charge_current'
+    ]
+
+    if not all(field in data for field in required_fields):
+        return jsonify({"error": "Missing one or more required fields"}), 400
+
+    connection = create_connection()
+    if not connection:
+        return jsonify({"error": "Database connection failed"}), 500
+
+    sql = """
+    INSERT INTO growatt (
+        inverter_id, battery_voltage, battery_soc, output_current,
+        inverter_current, inverter_temp, fan_speed_1, fan_speed_2,
+        pv_input_power, grid_voltage, line_frequency, output_voltage,
+        output_frequency, ac_charge_current, solar_buck1_current,
+        solar_buck2_current, total_solar_charge_current
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """
+    values = tuple(data[field] for field in required_fields)
+
+    try:
+        cursor = connection.cursor()
+        cursor.execute(sql, values)
+        connection.commit()
+        cursor.close()
+        connection.close()
+        return jsonify({"status": "success"}), 200
+    except Error as e:
+        print(f"Database error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
