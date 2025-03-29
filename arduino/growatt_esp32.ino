@@ -1,4 +1,4 @@
-// ESP32 Growatt Reader + WiFi POST to Flask API
+// ESP32 Growatt Reader - Full Register Reader with Retries and Delays
 #include <ModbusMaster.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -6,15 +6,12 @@
 #include <ArduinoJson.h>
 #include <Preferences.h>
 
-// MAX485 control pins
 #define MAX485_1_DE_RE 4
 #define MAX485_2_DE_RE 5
-
-// UART pins for RS485
-#define RXD2 16  // Master RX
-#define TXD2 17  // Master TX
-#define RXD1 13  // Slave RX
-#define TXD1 14  // Slave TX
+#define RXD2 16
+#define TXD2 17
+#define RXD1 13
+#define TXD1 14
 
 BluetoothSerial SerialBT;
 Preferences preferences;
@@ -27,6 +24,52 @@ void preTransmission1() { digitalWrite(MAX485_1_DE_RE, HIGH); }
 void postTransmission1() { digitalWrite(MAX485_1_DE_RE, LOW); }
 void preTransmission2() { digitalWrite(MAX485_2_DE_RE, HIGH); }
 void postTransmission2() { digitalWrite(MAX485_2_DE_RE, LOW); }
+
+struct RegisterDef {
+  uint16_t address;
+  const char* field;
+  float scale;
+  uint8_t length;
+};
+
+// Extensive Input Register List from Modbus Manual (Pages 13–19)
+RegisterDef inputRegs[] = {
+  {0, "system_status", 1.0f, 1},
+  {1, "pv1_voltage", 0.1f, 1},
+  {2, "pv2_voltage", 0.1f, 1},
+  {3, "pv_input_power_high", 1.0f, 2},
+  {17, "battery_voltage", 0.01f, 1},
+  {18, "battery_soc", 1.0f, 1},
+  {19, "bus_voltage", 0.1f, 1},
+  {20, "grid_voltage", 0.1f, 1},
+  {21, "line_frequency", 0.01f, 1},
+  {22, "output_voltage", 0.1f, 1},
+  {23, "output_frequency", 0.01f, 1},
+  {24, "dc_output_voltage", 0.1f, 1},
+  {25, "inverter_temp", 0.1f, 1},
+  {26, "dcdc_temp", 0.1f, 1},
+  {27, "load_percent", 1.0f, 1},
+  {28, "battery_port_voltage", 0.1f, 1},
+  {29, "battery_bus_voltage", 0.1f, 1},
+  {30, "work_time_low", 1.0f, 1},
+  {31, "work_time_high", 1.0f, 1},
+  {32, "buck1_temp", 0.1f, 1},
+  {33, "buck2_temp", 0.1f, 1},
+  {34, "output_current", 0.1f, 1},
+  {35, "inverter_current", 0.1f, 1},
+  {36, "ac_input_watt_high", 1.0f, 2},
+  {40, "fault_bit", 1.0f, 1},
+  {41, "warning_bit", 1.0f, 1},
+  {44, "device_type_code", 1.0f, 1},
+  {68, "ac_charge_current", 0.1f, 1},
+  {77, "battery_watt_charge", 1.0f, 1},
+  {78, "battery_watt_discharge", 1.0f, 1},
+  {81, "fan_speed_1", 1.0f, 1},
+  {82, "fan_speed_2", 1.0f, 1},
+  {186, "solar_buck1_current", 0.1f, 1},
+  {187, "solar_buck2_current", 0.1f, 1},
+  {188, "total_solar_charge_current", 0.1f, 2},
+};
 
 void setup() {
   Serial.begin(115200);
@@ -58,100 +101,54 @@ void setup() {
   node2.preTransmission(preTransmission2);
   node2.postTransmission(postTransmission2);
 
-  SerialBT.println("✅ Bluetooth started. Reading both inverters...");
+  SerialBT.println("✅ Bluetooth started. Reading full register set...");
 }
 
-void readAndSend(ModbusMaster &node, uint8_t id, float &outputCurrent, float &invCurrent) {
-  uint8_t result;
-  StaticJsonDocument<512> doc;
+void readAndSend(ModbusMaster &node, uint8_t id) {
+  StaticJsonDocument<2048> doc;
   doc["inverter_id"] = id;
 
-  SerialBT.printf("🔷 Inverter ID %u\n", id);
-
-  auto tryRead = [&](uint16_t reg, const char* name, float scale = 1.0f) {
-    for (int attempt = 0; attempt < 3; attempt++) {
-      result = node.readInputRegisters(reg, 1);
+  for (RegisterDef &reg : inputRegs) {
+    float value = 0;
+    bool success = false;
+    for (int attempt = 0; attempt < 3 && !success; ++attempt) {
+      uint8_t result = node.readInputRegisters(reg.address, reg.length);
       delay(50);
       if (result == node.ku8MBSuccess) {
-        float value = node.getResponseBuffer(0) * scale;
-        doc[name] = value;
-        SerialBT.printf("%s: %.2f\n", name, value);
-        return value;
+        if (reg.length == 1) {
+          value = node.getResponseBuffer(0) * reg.scale;
+        } else {
+          uint32_t raw = 0;
+          for (int i = 0; i < reg.length; i++) {
+            raw = (raw << 16) | node.getResponseBuffer(i);
+          }
+          value = raw * reg.scale;
+        }
+        doc[reg.field] = value;
+        SerialBT.printf("%s: %.2f\n", reg.field, value);
+        success = true;
       }
     }
-    SerialBT.printf("❌ Failed to read register %u (%s)\n", reg, name);
-    return 0.0f;
-  };
-
-  doc["battery_voltage"] = tryRead(17, "Battery Voltage", 0.01f);
-  doc["battery_soc"] = tryRead(18, "Battery SOC");
-  outputCurrent = tryRead(34, "Output Current", 0.1f);
-  doc["output_current"] = outputCurrent;
-  invCurrent = tryRead(35, "Inverter Current", 0.1f);
-  doc["inverter_current"] = invCurrent;
-  doc["inverter_temp"] = tryRead(25, "Inverter Temp", 0.1f);
-  doc["fan_speed_1"] = tryRead(81, "Fan Speed 1");
-  doc["fan_speed_2"] = tryRead(82, "Fan Speed 2");
-
-  result = node.readInputRegisters(3, 2);
-  delay(50);
-  if (result == node.ku8MBSuccess) {
-    uint32_t pv = ((uint32_t)node.getResponseBuffer(0) << 16 | node.getResponseBuffer(1));
-    doc["pv_input_power"] = pv * 0.1f;
-    SerialBT.printf("PV Input Power: %.1f W\n", pv * 0.1f);
-  } else {
-    SerialBT.println("❌ Failed to read registers 3-4 (PV Input Power)");
-  }
-
-  doc["grid_voltage"] = tryRead(20, "Grid Voltage", 0.1f);
-  doc["line_frequency"] = tryRead(21, "Line Frequency", 0.01f);
-  doc["output_voltage"] = tryRead(22, "Output Voltage", 0.1f);
-  doc["output_frequency"] = tryRead(23, "Output Frequency", 0.01f);
-  doc["ac_charge_current"] = tryRead(68, "AC Charge Current", 0.1f);
-
-  result = node.readInputRegisters(186, 2);
-  delay(50);
-  if (result == node.ku8MBSuccess) {
-    float buck1 = node.getResponseBuffer(0) * 0.1f;
-    float buck2 = node.getResponseBuffer(1) * 0.1f;
-    doc["solar_buck1_current"] = buck1;
-    doc["solar_buck2_current"] = buck2;
-    doc["total_solar_charge_current"] = buck1 + buck2;
-    SerialBT.printf("Solar Buck1 Current: %.1f A\n", buck1);
-    SerialBT.printf("Solar Buck2 Current: %.1f A\n", buck2);
-    SerialBT.printf("Total Solar Charge Current: %.1f A\n", buck1 + buck2);
-  } else {
-    SerialBT.println("❌ Failed to read registers 186-187 (Solar Charge Currents)");
+    if (!success) {
+      SerialBT.printf("❌ Failed to read %s (reg %u)\n", reg.field, reg.address);
+    }
   }
 
   SerialBT.println("------------------------------");
-
-  String json;
-  serializeJson(doc, json);
+  String payload;
+  serializeJson(doc, payload);
 
   HTTPClient http;
   http.begin(serverUrl);
   http.addHeader("Content-Type", "application/json");
-  int code = http.POST(json);
+  int code = http.POST(payload);
   http.end();
   Serial.printf("[Inverter %d] POST code: %d\n", id, code);
 }
 
 void loop() {
-  float outputCurrent1 = 0, invCurrent1 = 0;
-  float outputCurrent2 = 0, invCurrent2 = 0;
-
-  readAndSend(node1, 1, outputCurrent1, invCurrent1);
+  readAndSend(node1, 1);
   delay(3000);
-  readAndSend(node2, 2, outputCurrent2, invCurrent2);
-  delay(3000);
-
-  float totalOut = outputCurrent1 + outputCurrent2;
-  float totalInv = invCurrent1 + invCurrent2;
-
-  SerialBT.printf("🔆 Total Output Current: %.1f A\n", totalOut);
-  SerialBT.printf("🔆 Total Inverter Current: %.1f A\n", totalInv);
-  SerialBT.println("==================================\n");
-
-  delay(5000);
+  readAndSend(node2, 2);
+  delay(7000);
 }
