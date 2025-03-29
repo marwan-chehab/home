@@ -113,14 +113,21 @@ def device(device_type):
 def growatt():
     data = request.get_json()
 
+    # ✅ Updated to include all fields in your latest ESP32 script
     required_fields = [
         'inverter_id', 'battery_voltage', 'battery_soc', 'output_current',
         'inverter_current', 'inverter_temp', 'fan_speed_1', 'fan_speed_2',
-        'pv_input_power', 'grid_voltage', 'line_frequency', 'output_voltage',
+        'pv_input_power_high', 'grid_voltage', 'line_frequency', 'output_voltage',
         'output_frequency', 'ac_charge_current', 'solar_buck1_current',
-        'solar_buck2_current', 'total_solar_charge_current'
+        'solar_buck2_current', 'total_solar_charge_current',
+        'pv1_voltage', 'pv2_voltage', 'bus_voltage', 'dc_output_voltage',
+        'load_percent', 'battery_port_voltage', 'battery_bus_voltage',
+        'battery_watt_charge', 'battery_watt_discharge',
+        'buck1_temp', 'buck2_temp', 'work_time_low', 'work_time_high',
+        'device_type_code', 'system_status', 'fault_bit', 'warning_bit'
     ]
 
+    # Validate presence of required fields
     if not all(field in data for field in required_fields):
         return jsonify({"error": "Missing one or more required fields"}), 400
 
@@ -128,14 +135,10 @@ def growatt():
     if not connection:
         return jsonify({"error": "Database connection failed"}), 500
 
-    sql = """
+    sql = f"""
     INSERT INTO growatt (
-        inverter_id, battery_voltage, battery_soc, output_current,
-        inverter_current, inverter_temp, fan_speed_1, fan_speed_2,
-        pv_input_power, grid_voltage, line_frequency, output_voltage,
-        output_frequency, ac_charge_current, solar_buck1_current,
-        solar_buck2_current, total_solar_charge_current
-    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        {', '.join(required_fields)}
+    ) VALUES ({', '.join(['%s'] * len(required_fields))})
     """
     values = tuple(data[field] for field in required_fields)
 
