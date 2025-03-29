@@ -113,11 +113,12 @@ def device(device_type):
 def growatt():
     data = request.get_json()
 
-    # ✅ Updated to include all fields in your latest ESP32 script
-    required_fields = [
+    # Fields expected in the database
+    db_fields = [
         'inverter_id', 'battery_voltage', 'battery_soc', 'output_current',
         'inverter_current', 'inverter_temp', 'fan_speed_1', 'fan_speed_2',
-        'pv_input_power_high', 'grid_voltage', 'line_frequency', 'output_voltage',
+        'pv_input_power',  # <-- Will be mapped from pv_input_power_high
+        'grid_voltage', 'line_frequency', 'output_voltage',
         'output_frequency', 'ac_charge_current', 'solar_buck1_current',
         'solar_buck2_current', 'total_solar_charge_current',
         'pv1_voltage', 'pv2_voltage', 'bus_voltage', 'dc_output_voltage',
@@ -127,20 +128,32 @@ def growatt():
         'device_type_code', 'system_status', 'fault_bit', 'warning_bit'
     ]
 
-    # Validate presence of required fields
-    if not all(field in data for field in required_fields):
-        return jsonify({"error": "Missing one or more required fields"}), 400
+    # Required fields coming from the ESP32 (includes pv_input_power_high)
+    required_input_fields = db_fields.copy()
+    required_input_fields.remove('pv_input_power')
+    required_input_fields.append('pv_input_power_high')
+
+    # Validate incoming payload
+    if not all(field in data for field in required_input_fields):
+        missing = [field for field in required_input_fields if field not in data]
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
 
     connection = create_connection()
     if not connection:
         return jsonify({"error": "Database connection failed"}), 500
 
+    # SQL statement
     sql = f"""
     INSERT INTO growatt (
-        {', '.join(required_fields)}
-    ) VALUES ({', '.join(['%s'] * len(required_fields))})
+        {', '.join(db_fields)}
+    ) VALUES ({', '.join(['%s'] * len(db_fields))})
     """
-    values = tuple(data[field] for field in required_fields)
+
+    # Build values tuple, substituting pv_input_power from pv_input_power_high
+    values = tuple(
+        data['pv_input_power_high'] if field == 'pv_input_power' else data[field]
+        for field in db_fields
+    )
 
     try:
         cursor = connection.cursor()
@@ -152,6 +165,7 @@ def growatt():
     except Error as e:
         print(f"Database error: {e}")
         return jsonify({"error": str(e)}), 500
+
 
 
 if __name__ == '__main__':
