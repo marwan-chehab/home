@@ -112,6 +112,8 @@ def device(device_type):
 @app.route('/growatt', methods=['POST'])
 def growatt():
     data = request.get_json()
+    print("🔹 Incoming JSON payload:")
+    print(data)
 
     expected_fields = [
 		'system_status', 'pv1_voltage', 'pv2_voltage', 'pv1_charge_power', 'pv2_charge_power', 
@@ -147,6 +149,8 @@ def growatt():
 
     missing = [field for field in expected_fields if field not in data]
     if missing:
+	print("❌ Missing fields in payload:")
+        print(missing)
         return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
 
     connection = create_connection()
@@ -160,6 +164,7 @@ def growatt():
     values = tuple(data[field] for field in expected_fields)
 
     try:
+	print("✅ All expected fields are present.")
         cursor = connection.cursor()
         cursor.execute(sql, values)
         connection.commit()
