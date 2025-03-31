@@ -164,7 +164,7 @@ def growatt():
     values = tuple(data[field] for field in expected_fields)
 
     try:
-	print("✅ All expected fields are present.")
+        print("✅ All expected fields are present.")
         cursor = connection.cursor()
         cursor.execute(sql, values)
         connection.commit()
