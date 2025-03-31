@@ -149,7 +149,7 @@ def growatt():
 
     missing = [field for field in expected_fields if field not in data]
     if missing:
-	print("❌ Missing fields in payload:")
+        print("❌ Missing fields in payload:")
         print(missing)
         return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
 
