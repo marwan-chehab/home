@@ -73,7 +73,7 @@ CREATE TABLE `growatt` (
   `bms_pack_info` INT DEFAULT NULL,
   `bms_using_cap` INT DEFAULT NULL,
   `bms_cell1_volt` FLOAT DEFAULT NULL,
-  `bms2_cell16_volt` FLOAT DEFAULT NULL,
+  `bms_cell16_volt` FLOAT DEFAULT NULL,
   `bms2_status` INT DEFAULT NULL,
   `bms2_error` INT DEFAULT NULL,
   `bms2_warn_info` INT DEFAULT NULL,
