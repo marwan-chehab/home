@@ -107,7 +107,7 @@ RegisterDef inputRegs[] = {
 	{100, "bms_pack_info", 1.0f, 1},                // Pack Information
 	{101, "bms_using_cap", 1.0f, 1},                // Using Cap info
 	{102, "bms_cell1_volt", 0.01f, 1},              // Cell1 Voltage from BMS
-	{117, "bms2_cell16_volt", 0.01f, 1},            // Cell16 Voltage from BMS2
+	{117, "bms_cell16_volt", 0.01f, 1},            // Cell16 Voltage from BMS2
 	
 	// BMS2 (Secondary Battery System)
 	{118, "bms2_status", 1.0f, 1},                  // Status from BMS2
