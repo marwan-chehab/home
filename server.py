@@ -128,7 +128,7 @@ def growatt():
 		'bat_discharge_watt', 'bat_discharge_va', 'battery_watt', 'bat_overcharge_flag', 'mppt_fan_speed', 
 		'inv_fan_speed', 'bms_status', 'bms_error', 'bms_warn_info', 'bms_soc', 'bms_battery_volt', 'bms_battery_curr', 
 		'bms_battery_temp', 'bms_max_curr', 'bms_constant_volt', 'bms_info', 'bms_pack_info', 'bms_using_cap', 
-		'bms_cell1_volt', 'bms2_cell16_volt', 'bms2_status', 'bms2_error', 'bms2_warn_info', 'bms2_soc', 
+		'bms_cell1_volt', 'bms_cell16_volt', 'bms2_status', 'bms2_error', 'bms2_warn_info', 'bms2_soc', 
 		'bms2_battery_volt', 'bms2_battery_curr', 'bms2_battery_temp', 'bms2_max_curr', 'bms2_constant_volt', 
 		'bms2_info', 'bms2_pack_info', 'bms2_using_cap', 'bms2_cell1_volt', 'bms2_cell16_volt', 'solar1_status', 
 		'solar1_fault_code', 'solar1_warning_code', 'solar1_bat_voltage', 'solar1_pv1_voltage', 'solar1_pv2_voltage', 
