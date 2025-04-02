@@ -230,11 +230,18 @@ void readAndSend(ModbusMaster &node, uint8_t id) {
         if (reg.length == 1) {
           value = node.getResponseBuffer(0) * reg.scale;
         } else {
-          uint32_t raw = 0;
-          for (int i = 0; i < reg.length; i++) {
-            raw = (raw << 16) | node.getResponseBuffer(i);
-          }
-          value = raw * reg.scale;
+			if (strcmp(reg.field, "battery_watt") == 0 && reg.length == 2) {
+				// Handle signed 32-bit for battery_watt
+				int32_t signedRaw = ((int32_t)node.getResponseBuffer(0) << 16) | node.getResponseBuffer(1);
+				value = signedRaw * reg.scale;
+			} else {
+				uint32_t raw = 0;
+				for (int i = 0; i < reg.length; i++) {
+					raw = (raw << 16) | node.getResponseBuffer(i);
+				}
+				value = raw * reg.scale;
+			}
+
         }
         doc[reg.field] = value;
         SerialBT.printf("%s: %.2f\n", reg.field, value);
